@@ -21,4 +21,16 @@ export class UserService {
 
     return await user.save();
   }
+
+  async findById(id: string) {
+    return await this.userModel.findById(id);
+  }
+
+  async findByEmail(email: string) {
+    return await this.userModel.findOne({ email });
+  }
+
+  async findAll() {
+    return await this.userModel.find();
+  }
 }
