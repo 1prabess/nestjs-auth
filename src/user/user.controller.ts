@@ -1,6 +1,5 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
 import { UserService } from './providers/user.service';
-
 import { JwtAccessTokenAuthGuard } from 'src/auth/guards/jwt-access-auth.guard';
 import { RoleGuard } from 'src/auth/guards/role.guard';
 import { Roles } from 'src/common/decorators/role.decorator';
