@@ -1,14 +1,14 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { User } from '../schema/user.schema';
-import { Model, Document } from 'mongoose';
+import { Model } from 'mongoose';
 import { HashingProvider } from 'src/auth/providers/hashing.provider';
 
 @Injectable()
 export class UserService {
   constructor(
     @InjectModel(User.name)
-    private readonly userModel: Model<User & Document>,
+    private readonly userModel: Model<User>,
     private readonly hashingProvider: HashingProvider,
   ) {}
 
