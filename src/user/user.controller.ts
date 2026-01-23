@@ -17,7 +17,7 @@ export class UserController {
   @Get()
   @UseGuards(JwtAccessTokenAuthGuard, RoleGuard)
   @Roles(Role.ADMIN, Role.MODERATOR)
-  async findAll() {
+  async findAll(): Promise<User[]> {
     return this.userService.findAll();
   }
 
@@ -25,7 +25,7 @@ export class UserController {
   @ApiOperation({ summary: 'Get the currently logged-in user' })
   @Get('/profile')
   @UseGuards(JwtAccessTokenAuthGuard)
-  async getProfile(@CurrentUser() user: User) {
+  async getProfile(@CurrentUser() user: User): Promise<User | null> {
     return this.userService.findById(user._id.toHexString());
   }
 }

@@ -22,7 +22,7 @@ export class AuthController {
   async login(
     @CurrentUser() user: User,
     @Res({ passthrough: true }) response: Response,
-  ) {
+  ): Promise<{ message: string }> {
     const { accessToken, refreshToken } = await this.authService.login(user);
 
     setAuthCookies(response, accessToken, refreshToken);
@@ -36,18 +36,14 @@ export class AuthController {
   async register(
     @Body() registerUserDto: RegisterUserDto,
     @Res({ passthrough: true }) response: Response,
-  ) {
-    const { user, accessToken, refreshToken } =
+  ): Promise<{ message: string }> {
+    const { accessToken, refreshToken } =
       await this.authService.register(registerUserDto);
 
     setAuthCookies(response, accessToken, refreshToken);
 
     return {
       message: 'Registration successful',
-      user: {
-        id: user._id,
-        email: user.email,
-      },
     };
   }
 
@@ -58,7 +54,7 @@ export class AuthController {
   async refreshToken(
     @CurrentUser() user: User,
     @Res({ passthrough: true }) response: Response,
-  ) {
+  ): Promise<{ message: string }> {
     const { accessToken, refreshToken } = await this.authService.login(user);
 
     setAuthCookies(response, accessToken, refreshToken);
@@ -71,7 +67,7 @@ export class AuthController {
   async logout(
     @CurrentUser() user: User,
     @Res({ passthrough: true }) response: Response,
-  ) {
+  ): Promise<{ message: string }> {
     await this.authService.logout(user._id.toHexString());
 
     clearAuthCookies(response);

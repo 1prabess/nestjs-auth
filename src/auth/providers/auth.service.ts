@@ -9,9 +9,9 @@ import { HashingProvider } from './hashing.provider';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { User } from 'src/user/schema/user.schema';
-import type { Response } from 'express';
 import { TokenPayload } from '../interfaces/token-payload.interface';
 import { RegisterUserDto } from '../dtos/register-user.dto';
+import { AuthTokens } from '../interfaces/auth-tokens.interface';
 
 @Injectable()
 export class AuthService {
@@ -23,7 +23,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  async login(user: User) {
+  async login(user: User): Promise<AuthTokens> {
     const accessTokenCookieExpiry = new Date();
     accessTokenCookieExpiry.setTime(
       accessTokenCookieExpiry.getTime() +
@@ -66,22 +66,20 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
-  async register(registerUserDto: RegisterUserDto) {
+  async register(registerUserDto: RegisterUserDto): Promise<AuthTokens> {
     const user = await this.userService.create(
       registerUserDto.email,
       registerUserDto.password,
     );
 
-    const { accessToken, refreshToken } = await this.login(user);
-
-    return { user, accessToken, refreshToken };
+    return this.login(user);
   }
 
-  async logout(userId: string) {
+  async logout(userId: string): Promise<void> {
     await this.userService.removeRefreshToken(userId);
   }
 
-  async validateUser(email: string, password: string) {
+  async validateUser(email: string, password: string): Promise<User> {
     const user = await this.userService.findByEmail(email);
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
@@ -99,7 +97,10 @@ export class AuthService {
     return user;
   }
 
-  async validateUserRefreshToken(userId: string, refreshToken: string) {
+  async validateUserRefreshToken(
+    userId: string,
+    refreshToken: string,
+  ): Promise<User> {
     const user = await this.userService.findByIdWithRefreshToken(userId);
 
     if (!user || !user.refreshToken) {
