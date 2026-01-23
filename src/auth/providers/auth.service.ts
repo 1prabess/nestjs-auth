@@ -11,6 +11,7 @@ import { JwtService } from '@nestjs/jwt';
 import { User } from 'src/user/schema/user.schema';
 import type { Response } from 'express';
 import { TokenPayload } from '../interfaces/token-payload.interface';
+import { RegisterUserDto } from '../dtos/register-user.dto';
 
 @Injectable()
 export class AuthService {
@@ -22,11 +23,25 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  async login(user: User, response: Response) {
+  async login(user: User) {
     const accessTokenCookieExpiry = new Date();
     accessTokenCookieExpiry.setTime(
       accessTokenCookieExpiry.getTime() +
-        Number(this.configService.getOrThrow('JWT_ACCESS_TOKEN_EXPIRATION_MS')),
+        Number(
+          this.configService.getOrThrow<string>(
+            'JWT_ACCESS_TOKEN_EXPIRATION_MS',
+          ),
+        ),
+    );
+
+    const refreshTokenCookieExpiry = new Date();
+    refreshTokenCookieExpiry.setTime(
+      refreshTokenCookieExpiry.getTime() +
+        Number(
+          this.configService.getOrThrow<string>(
+            'JWT_REFRESH_TOKEN_EXPIRATION_MS',
+          ),
+        ),
     );
 
     const payload: TokenPayload = {
@@ -38,7 +53,32 @@ export class AuthService {
       expiresIn: `${this.configService.getOrThrow('JWT_ACCESS_TOKEN_EXPIRATION_MS')}ms`,
     });
 
-    return { accessToken };
+    const refreshToken = this.jwtService.sign(payload, {
+      secret: this.configService.getOrThrow('JWT_REFRESH_TOKEN_SECRET'),
+      expiresIn: `${this.configService.getOrThrow('JWT_REFRESH_TOKEN_EXPIRATION_MS')}ms`,
+    });
+
+    await this.userService.setRefreshToken(
+      user._id.toHexString(),
+      refreshToken,
+    );
+
+    return { accessToken, refreshToken };
+  }
+
+  async register(registerUserDto: RegisterUserDto) {
+    const user = await this.userService.create(
+      registerUserDto.email,
+      registerUserDto.password,
+    );
+
+    const { accessToken, refreshToken } = await this.login(user);
+
+    return { user, accessToken, refreshToken };
+  }
+
+  async logout(userId: string) {
+    await this.userService.removeRefreshToken(userId);
   }
 
   async validateUser(email: string, password: string) {
@@ -54,6 +94,25 @@ export class AuthService {
 
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
+    }
+
+    return user;
+  }
+
+  async validateUserRefreshToken(userId: string, refreshToken: string) {
+    const user = await this.userService.findByIdWithRefreshToken(userId);
+
+    if (!user || !user.refreshToken) {
+      throw new UnauthorizedException();
+    }
+
+    const isValid = await this.hashingProvider.compare(
+      refreshToken,
+      user?.refreshToken,
+    );
+
+    if (!isValid) {
+      throw new UnauthorizedException();
     }
 
     return user;
