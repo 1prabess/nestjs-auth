@@ -7,7 +7,8 @@ import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
 import { UserModule } from 'src/user/user.module';
 import { LocalStrategy } from './strategies/local.strategy';
-import { JwtStrategy } from './strategies/jwt.strategy';
+import { JwtAccessTokenStrategy } from './strategies/jwt-access.strategy';
+import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
 
 @Module({
   imports: [forwardRef(() => UserModule), PassportModule, JwtModule],
@@ -15,7 +16,8 @@ import { JwtStrategy } from './strategies/jwt.strategy';
   providers: [
     AuthService,
     LocalStrategy,
-    JwtStrategy,
+    JwtAccessTokenStrategy,
+    JwtRefreshStrategy,
     {
       provide: HashingProvider,
       useClass: BcryptProvider,
