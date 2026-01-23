@@ -1,24 +1,32 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
-import { CreateUserDto } from 'src/dtos/create-user.dto';
+import { Controller, Get, UseGuards } from '@nestjs/common';
 import { UserService } from './providers/user.service';
-import { ApiOperation } from '@nestjs/swagger';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+
+import { JwtAccessTokenAuthGuard } from 'src/auth/guards/jwt-access-auth.guard';
+import { RoleGuard } from 'src/auth/guards/role.guard';
+import { Roles } from 'src/common/decorators/role.decorator';
+import { Role } from 'src/auth/enums/role.enum';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { User } from './schema/user.schema';
+import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 
 @Controller('users')
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  @Post()
-  async create(@Body() createUserDto: CreateUserDto) {
-    return this.userService.create(createUserDto);
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all users (Admin/Moderator only)' })
+  @Get()
+  @UseGuards(JwtAccessTokenAuthGuard, RoleGuard)
+  @Roles(Role.ADMIN, Role.MODERATOR)
+  async findAll() {
+    return this.userService.findAll();
   }
 
-  @Get()
-  @UseGuards(JwtAuthGuard)
-  async findAll(@CurrentUser() user: User) {
-    console.log(user);
-    return this.userService.findAll();
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get the currently logged-in user' })
+  @Get('/profile')
+  @UseGuards(JwtAccessTokenAuthGuard)
+  async getProfile(@CurrentUser() user: User) {
+    return this.userService.findById(user._id.toHexString());
   }
 }
