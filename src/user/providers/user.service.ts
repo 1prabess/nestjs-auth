@@ -12,14 +12,18 @@ export class UserService {
     private readonly hashingProvider: HashingProvider,
   ) {}
 
-  async create(email: string, password: string): Promise<User> {
+  async create(email: string, password: string | null): Promise<User> {
     const existingUser = await this.findByEmail(email);
 
     if (existingUser) {
       throw new UnauthorizedException('User already exists');
     }
 
-    const hashedPassword = await this.hashingProvider.hash(password);
+    let hashedPassword: string | undefined;
+
+    if (password) {
+      hashedPassword = await this.hashingProvider.hash(password);
+    }
 
     const user = new this.userModel({
       email,
