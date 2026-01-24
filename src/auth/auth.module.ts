@@ -9,15 +9,26 @@ import { UserModule } from 'src/user/user.module';
 import { LocalStrategy } from './strategies/local.strategy';
 import { JwtAccessTokenStrategy } from './strategies/jwt-access.strategy';
 import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
+import { GoogleStrategy } from './strategies/google.strategy';
+import { ConfigModule } from '@nestjs/config';
+import jwtConfig from './config/jwt.config';
+import googleConfig from './config/google.config';
 
 @Module({
-  imports: [forwardRef(() => UserModule), PassportModule, JwtModule],
+  imports: [
+    ConfigModule.forFeature(jwtConfig),
+    ConfigModule.forFeature(googleConfig),
+    forwardRef(() => UserModule),
+    PassportModule,
+    JwtModule,
+  ],
   exports: [HashingProvider],
   providers: [
     AuthService,
     LocalStrategy,
     JwtAccessTokenStrategy,
     JwtRefreshStrategy,
+    GoogleStrategy,
     {
       provide: HashingProvider,
       useClass: BcryptProvider,
