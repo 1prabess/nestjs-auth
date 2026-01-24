@@ -6,20 +6,22 @@ import {
 } from '@nestjs/common';
 import { UserService } from 'src/user/providers/user.service';
 import { HashingProvider } from './hashing.provider';
-import { ConfigService } from '@nestjs/config';
+import type { ConfigType } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { User } from 'src/user/schema/user.schema';
 import { TokenPayload } from '../interfaces/token-payload.interface';
 import { RegisterUserDto } from '../dtos/register-user.dto';
 import { AuthTokens } from '../interfaces/auth-tokens.interface';
+import jwtConfig from '../config/jwt.config';
 
 @Injectable()
 export class AuthService {
   constructor(
+    @Inject(jwtConfig.KEY)
+    private readonly jwtConfiguration: ConfigType<typeof jwtConfig>,
     @Inject(forwardRef(() => UserService))
     private readonly userService: UserService,
     private readonly hashingProvider: HashingProvider,
-    private readonly configService: ConfigService,
     private readonly jwtService: JwtService,
   ) {}
 
@@ -27,21 +29,13 @@ export class AuthService {
     const accessTokenCookieExpiry = new Date();
     accessTokenCookieExpiry.setTime(
       accessTokenCookieExpiry.getTime() +
-        Number(
-          this.configService.getOrThrow<string>(
-            'JWT_ACCESS_TOKEN_EXPIRATION_MS',
-          ),
-        ),
+        Number(this.jwtConfiguration.accessTokenTtlMs),
     );
 
     const refreshTokenCookieExpiry = new Date();
     refreshTokenCookieExpiry.setTime(
       refreshTokenCookieExpiry.getTime() +
-        Number(
-          this.configService.getOrThrow<string>(
-            'JWT_REFRESH_TOKEN_EXPIRATION_MS',
-          ),
-        ),
+        Number(this.jwtConfiguration.refreshTokenTtlMs),
     );
 
     const payload: TokenPayload = {
@@ -49,13 +43,13 @@ export class AuthService {
     };
 
     const accessToken = this.jwtService.sign(payload, {
-      secret: this.configService.getOrThrow('JWT_ACCESS_TOKEN_SECRET'),
-      expiresIn: `${this.configService.getOrThrow('JWT_ACCESS_TOKEN_EXPIRATION_MS')}ms`,
+      secret: this.jwtConfiguration.accessTokenSecret,
+      expiresIn: `${this.jwtConfiguration.accessTokenTtlMs}ms`,
     });
 
     const refreshToken = this.jwtService.sign(payload, {
-      secret: this.configService.getOrThrow('JWT_REFRESH_TOKEN_SECRET'),
-      expiresIn: `${this.configService.getOrThrow('JWT_REFRESH_TOKEN_EXPIRATION_MS')}ms`,
+      secret: this.jwtConfiguration.refreshTokenSecret,
+      expiresIn: `${this.jwtConfiguration.refreshTokenTtlMs}ms`,
     });
 
     await this.userService.setRefreshToken(
@@ -81,7 +75,7 @@ export class AuthService {
 
   async validateUser(email: string, password: string): Promise<User> {
     const user = await this.userService.findByEmail(email);
-    if (!user) {
+    if (!user || !user.password) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -95,6 +89,21 @@ export class AuthService {
     }
 
     return user;
+  }
+
+  async validateOauthLogin(profile: any): Promise<AuthTokens> {
+    const { emails, displayName } = profile;
+    const email = emails[0].value;
+
+    let user = await this.userService.findByEmail(email);
+
+    if (!user) {
+      user = await this.userService.create(email, null);
+    }
+
+    const { accessToken, refreshToken } = await this.login(user);
+
+    return { accessToken, refreshToken };
   }
 
   async validateUserRefreshToken(
