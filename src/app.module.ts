@@ -6,6 +6,7 @@ import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 import dbConfig from './auth/config/db.config';
 import { envValidationSchema } from './auth/config/env.validation';
+import { MailModule } from './mail/mail.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { envValidationSchema } from './auth/config/env.validation';
     }),
     UserModule,
     AuthModule,
+    MailModule,
   ],
   controllers: [],
   providers: [],
