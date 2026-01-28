@@ -10,4 +10,7 @@ export const envValidationSchema = Joi.object({
   GOOGLE_CLIENT_ID: Joi.string().required(),
   GOOGLE_CLIENT_SECRET: Joi.string().required(),
   GOOGLE_CALLBACK_URL: Joi.string().required(),
+  SMTP_HOST: Joi.string().required(),
+  SMTP_USERNAME: Joi.string().required(),
+  SMTP_PASSWORD: Joi.string().required(),
 });
