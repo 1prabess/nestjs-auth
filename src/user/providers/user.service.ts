@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { User } from '../schema/user.schema';
 import { Model } from 'mongoose';
 import { HashingProvider } from 'src/auth/providers/hashing.provider';
+import { MailService } from 'src/mail/providers/mail.service';
 
 @Injectable()
 export class UserService {
@@ -10,6 +11,7 @@ export class UserService {
     @InjectModel(User.name)
     private readonly userModel: Model<User>,
     private readonly hashingProvider: HashingProvider,
+    private readonly mailService: MailService,
   ) {}
 
   async create(email: string, password: string | null): Promise<User> {
@@ -30,7 +32,15 @@ export class UserService {
       password: hashedPassword,
     });
 
-    return await user.save();
+    await user.save();
+
+    try {
+      await this.mailService.sendWelcomeMail(user);
+    } catch (error) {
+      console.error('Failed to send welcome email:', error.message);
+    }
+
+    return user;
   }
 
   async findById(userId: string): Promise<User | null> {
