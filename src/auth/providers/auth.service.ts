@@ -96,7 +96,6 @@ export class AuthService {
     const email = emails[0].value;
 
     let user = await this.userService.findByEmail(email);
-
     if (!user) {
       user = await this.userService.create(email, null);
     }
