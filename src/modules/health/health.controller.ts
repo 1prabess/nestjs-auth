@@ -1,6 +1,8 @@
 import { Controller, Get } from '@nestjs/common';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { DataSource } from 'typeorm';
 
+@ApiTags('health')
 @Controller('health')
 export class HealthController {
     constructor(
@@ -8,6 +10,8 @@ export class HealthController {
     ) {}
 
     @Get('live')
+    @ApiOperation({ summary: 'Liveness probe' })
+    @ApiResponse({ status: 200, description: 'Process is alive' })
     live() {
         return {
         status: 'ok',
@@ -16,6 +20,9 @@ export class HealthController {
     }
 
     @Get('ready')
+    @ApiOperation({ summary: 'Readiness probe' })
+    @ApiResponse({ status: 200, description: 'Process and database are ready' })
+    @ApiResponse({ status: 503, description: 'Database is unreachable' })
     async ready() {
         await this.dataSource.query('SELECT 1');
 
