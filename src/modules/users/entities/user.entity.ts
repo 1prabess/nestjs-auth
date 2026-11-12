@@ -4,18 +4,17 @@ import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateCol
 @Entity("users")
 export class User {
     @PrimaryGeneratedColumn("uuid")
-    @ApiProperty({ format: 'uuid' })
     id: string;
 
     @Column({type: "varchar", unique: true, length:320})
-    @ApiProperty({ format: 'email', example: 'user@example.com' })
     email: string;
 
+    @Column({name: "password_hash", type: "varchar", length: 255, nullable: true})
+    passwordHash: string;
+
     @CreateDateColumn({name: "created_at", type: "timestamptz"})
-    @ApiProperty()
     createdAt: Date;
 
     @UpdateDateColumn({name: "updated_at", type: "timestamptz"})
-    @ApiProperty()
     updatedAt: Date;
 }
