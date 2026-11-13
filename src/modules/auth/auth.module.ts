@@ -11,6 +11,8 @@ import { parseDurationToSeconds } from '../../common/utils/parse-duration.js';
 import { JwtStrategy } from './strategies/jwt.strategy.js';
 import { LocalAuthGuard } from './guards/local-auth.guard.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
+import { RefreshTokenService } from './refresh-token.service.js';
+import { SessionsService } from './sessions.service.js';
 
 @Module({
   imports: [
@@ -33,6 +35,8 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
     JwtStrategy,
     LocalAuthGuard,
     JwtAuthGuard,
+    RefreshTokenService,
+    SessionsService,
   ],
   controllers: [AuthController],
 })
