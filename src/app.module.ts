@@ -7,6 +7,7 @@ import { UsersModule } from './modules/users/users.module.js';
 import { DatabaseModule } from './database/database.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
+import jwtConfig from './configs/jwt.config.js';
 
 @Module({
   imports: [
@@ -14,13 +15,13 @@ import { AuthModule } from './modules/auth/auth.module.js';
       isGlobal: true,
       envFilePath: ['.env'],
       cache: true,
-      load: [appConfig, databaseConfig],
-      validationSchema: envSchema
+      load: [appConfig, databaseConfig, jwtConfig],
+      validationSchema: envSchema,
     }),
     UsersModule,
     DatabaseModule,
     HealthModule,
-    AuthModule
+    AuthModule,
   ],
   controllers: [],
   providers: [],
