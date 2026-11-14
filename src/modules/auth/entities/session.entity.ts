@@ -35,7 +35,7 @@ export class Session {
   @Column({ name: 'expires_at', type: 'timestamptz' })
   expiresAt: Date;
 
-  @Column({ name: 'revoked_at', type: 'timestamptz' })
+  @Column({ name: 'revoked_at', type: 'timestamptz', nullable: true })
   revokedAt: Date | null;
 
   @Column({ name: 'user_agent', type: 'varchar', nullable: true })
