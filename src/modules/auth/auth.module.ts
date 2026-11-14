@@ -13,10 +13,14 @@ import { LocalAuthGuard } from './guards/local-auth.guard.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 import { RefreshTokenService } from './refresh-token.service.js';
 import { SessionsService } from './sessions.service.js';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Session } from './entities/session.entity.js';
+import { RefreshToken } from './entities/refresh-token.entity.js';
 
 @Module({
   imports: [
     UsersModule,
+    TypeOrmModule.forFeature([Session, RefreshToken]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [jwtConfig.KEY],
