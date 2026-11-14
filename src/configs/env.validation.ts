@@ -22,4 +22,7 @@ export const envSchema = z.object({
     .string()
     .min(32, 'JWT_ACCESS_SECRET must be at least 32 characters'),
   JWT_ACCESS_TTL: z.string().min(2).default('15m'),
+
+  REFRESH_TTL: z.string().min(2).default('7d'),
+  SESSION_ABSOLUTE_TTL: z.string().min(2).default('30d'),
 });
