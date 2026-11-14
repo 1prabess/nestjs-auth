@@ -5,6 +5,7 @@ import {
   HttpCode,
   HttpStatus,
   Post,
+  Request,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -24,6 +25,7 @@ import { User } from '../users/entities/user.entity.js';
 import { AuthTokens } from './auth-tokens.js';
 import { LocalAuthGuard } from './guards/local-auth.guard.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
+import type { Request as HttpRequest } from 'express';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -66,8 +68,15 @@ export class AuthController {
       required: ['accessToken', 'tokenType', 'expiresIn'],
     },
   })
-  async login(@CurrentUser() user: User): Promise<AuthTokens> {
-    return this.authService.issueTokens(user);
+  async login(
+    @CurrentUser() user: User,
+    @Request() request: HttpRequest,
+  ): Promise<AuthTokens> {
+    const userAgent = request.headers['user-agent'];
+    return this.authService.startSession(user, {
+      userAgent: typeof userAgent === 'string' ? userAgent : null,
+      ipAddress: request.ip ?? null,
+    });
   }
 
   @Get('/me')
