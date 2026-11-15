@@ -1,22 +1,6 @@
 # NestJS Auth
 
-A production-oriented authentication service built with NestJS 12, demonstrating how to build secure token-based auth without the shortcuts that quietly break security.
-
-Short-lived JWT access tokens are paired with server-side sessions and rotating refresh tokens, so sessions can be revoked, inspected, and invalidated server-side.
-
-## What it does
-
-| Endpoint | Purpose |
-| --- | --- |
-| `POST /api/auth/register` | Create an account with an Argon2id-hashed password |
-| `POST /api/auth/login` | Start a session, returning an access token and a refresh token |
-| `POST /api/auth/refresh` | Rotate the refresh token and issue a new access token |
-| `POST /api/auth/logout` | Revoke the current session and all of its refresh tokens |
-| `GET /api/auth/me` | Return the authenticated user |
-| `GET /api/health/live` | Liveness probe |
-| `GET /api/health/ready` | Readiness probe (checks database connectivity) |
-
-Interactive documentation is served at `/docs` via Swagger.
+A production-oriented authentication service built with NestJS 12.
 
 ## Security design
 
