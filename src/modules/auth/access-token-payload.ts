@@ -4,4 +4,5 @@ export interface AccessTokenPayload {
   jti: string;
   iat?: number;
   exp?: number;
+  sid: string;
 }

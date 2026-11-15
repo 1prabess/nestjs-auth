@@ -31,6 +31,16 @@ export class SessionsService {
     return this.sessionsRepository.save(session);
   }
 
+  async findActiveById(sessionId: string): Promise<Session | null> {
+    return this.sessionsRepository.findOne({
+      where: {
+        id: sessionId,
+        revokedAt: IsNull(),
+        expiresAt: MoreThan(new Date()),
+      },
+    });
+  }
+
   async listActive(userId: string): Promise<Session[]> {
     return this.sessionsRepository.find({
       where: {
