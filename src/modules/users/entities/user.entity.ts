@@ -2,9 +2,13 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
+  type Relation,
 } from 'typeorm';
+import { Session } from '../../auth/entities/session.entity.js';
+import { RefreshToken } from '../../auth/entities/refresh-token.entity.js';
 
 @Entity('users')
 export class User {
@@ -20,11 +24,17 @@ export class User {
     length: 255,
     nullable: true,
   })
-  passwordHash: string;
+  passwordHash: string | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt: Date;
+
+  @OneToMany(() => Session, (session) => session.user)
+  sessions: Relation<Session[]>;
+
+  @OneToMany(() => RefreshToken, (refreshToken) => refreshToken.user)
+  refreshTokens: Relation<RefreshToken[]>;
 }
