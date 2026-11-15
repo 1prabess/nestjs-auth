@@ -1,132 +1,85 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# NestJS Auth
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A production-oriented authentication service built with NestJS 12, demonstrating how to build secure token-based auth without the shortcuts that quietly break security.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+Short-lived JWT access tokens are paired with server-side sessions and rotating refresh tokens, so sessions can be revoked, inspected, and invalidated server-side.
 
-## Description
+## What it does
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+| Endpoint | Purpose |
+| --- | --- |
+| `POST /api/auth/register` | Create an account with an Argon2id-hashed password |
+| `POST /api/auth/login` | Start a session, returning an access token and a refresh token |
+| `POST /api/auth/refresh` | Rotate the refresh token and issue a new access token |
+| `POST /api/auth/logout` | Revoke the current session and all of its refresh tokens |
+| `GET /api/auth/me` | Return the authenticated user |
+| `GET /api/health/live` | Liveness probe |
+| `GET /api/health/ready` | Readiness probe (checks database connectivity) |
 
-## Project setup
+Interactive documentation is served at `/docs` via Swagger.
 
-```bash
-$ npm install
+## Security design
+
+**Argon2id, not bcrypt.** Passwords are hashed with Argon2id using the OWASP-recommended parameters (`memoryCost: 19456`, `timeCost: 2`, `parallelism: 1`). Argon2id is memory-hard, so it resists GPU cracking and side-channel attacks far better than bcrypt, which is CPU-bound and only designed to be slow on the CPU it was calibrated for.
+
+**Dummy hash verification prevents user enumeration.** When a login attempt references an account that does not exist, the service still performs a real Argon2 verification against a dummy hash before rejecting the request. Without this, "unknown email" would return noticeably faster than "wrong password", leaking which addresses have accounts through response timing.
+
+**Refresh tokens are opaque and hashed at rest.** A refresh token is 32 random bytes from `crypto.randomBytes`, and only its SHA-256 hash is stored. A database leak therefore exposes no usable credentials, and the server never has to hold a token it could replay.
+
+**Tokens rotate on every use.** Each refresh issues a new token and marks the old one used, revoked, and linked to its replacement. The rotation runs inside a transaction with a `pessimistic_write` row lock, so two concurrent refreshes with the same token can never both succeed.
+
+**Reuse is treated as theft.** Presenting an already-used refresh token means the token was captured and replayed. The service revokes the entire session and every token in it, immediately cutting off the attacker and the legitimate user alike. That is the intended trade-off: forcing re-authentication is recoverable, continuing to serve a compromised session is not.
+
+**Access tokens are bound to their session.** The session id is embedded in the access token payload and checked on every authenticated request. Revoking a session invalidates its access tokens immediately instead of leaving them usable until the JWT expires.
+
+**Logout revokes the session and its refresh tokens.** Scoped to the authenticated user and idempotent, so a repeated logout is a no-op rather than an error.
+
+**Sessions record client context.** Each session stores the user agent and IP address, and is bounded by an absolute lifetime separate from the refresh token lifetime.
+
+## Architecture
+
+```
+src/
+├── auth/            # controller, service, strategies, guards, entities
+├── users/           # user entity and service
+├── health/          # liveness and readiness probes
+├── common/          # decorators and shared utilities
+├── configs/         # typed, validated configuration
+└── database/        # TypeORM data source and migrations
 ```
 
-## Compile and run the project
+Configuration is registered through `@nestjs/config` with a Zod schema, so a missing or malformed environment variable fails at boot rather than at the first request. Durations are parsed centrally rather than coerced with `Number()`, which would silently produce `NaN` for values like `7d`.
+
+## Running locally
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npm install
+cp .env.example .env    # then add JWT_ACCESS_SECRET (32+ chars)
+docker compose up -d    # postgres
+npm run migration:run
+npm run start:dev
 ```
 
-## Run tests
+| Script | Purpose |
+| --- | --- |
+| `npm run start:dev` | Watch mode |
+| `npm run build` | Production build |
+| `npm run start:prod` | Run the compiled build |
+| `npm run lint` | Type-aware linting |
+| `npm test` | Unit tests |
+| `npm run test:e2e` | End-to-end tests |
+| `npm run migration:run` | Apply database migrations |
 
-```bash
-# unit tests
-$ npm run test
+## Environment
 
-# e2e tests
-$ npm run test:e2e
+| Variable | Purpose |
+| --- | --- |
+| `DATABASE_URL` | PostgreSQL connection string |
+| `JWT_ACCESS_SECRET` | Access token signing key, minimum 32 characters |
+| `JWT_ACCESS_TTL` | Access token lifetime, e.g. `15m` |
+| `REFRESH_TTL` | Refresh token lifetime, e.g. `7d` |
+| `SESSION_ABSOLUTE_TTL` | Maximum session lifetime, e.g. `30d` |
 
-# test coverage
-$ npm run test:cov
-```
+## Stack
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Observability
-
-In production applications, observability is essential for understanding how your system behaves, detecting issues early, and maintaining reliable performance.
-
-[NestJS Observe](https://observe.nestjs.com) automatically instruments your NestJS application, giving you deep visibility into your system with minimal setup:
-
-- **Distributed tracing:** Follow requests across services and understand how they flow through your system.
-- **Waterfall analysis:** Visualize request execution and identify slow operations, bottlenecks, and unexpected delays.
-- **Performance analysis:** Analyze application performance in real time and quickly pinpoint areas that need optimization.
-- **Metrics:** Track key application and infrastructure metrics to understand system health and performance trends.
-- **Logging:** Centralize and correlate logs with traces and other telemetry to make debugging easier.
-- **Error tracking:** Detect errors quickly and investigate their root causes with the surrounding context.
-- **SLA monitoring:** Track service-level objectives and identify when your application is approaching or exceeding defined thresholds.
-- **Alarms and alerts:** Set up alerts for critical errors, performance degradation, SLA violations, and other anomalies so your team can react quickly.
-
-To add it to this project, run this and approve the code it prints at [observe.nestjs.com/link](https://observe.nestjs.com/link) - signing up for free if you have no account:
-
-```bash
-$ npx @nestjs/observe link
-```
-
-It installs `@nestjs/observe`, wires it into `AppModule` and `main.ts`, and writes the app key and secret into `.env`, which every `nest start` script (`start`, `start:dev`, `start:debug`) then loads. In production, set `OBSERVE_APP_KEY` and `OBSERVE_APP_SECRET` in the environment instead.
-
-Or do it by hand:
-
-```bash
-$ npm install @nestjs/observe
-```
-
-Then follow the [setup guide](https://docs.nestjs.com/observability/sdk) - it takes a single import and an app key.
-
-The free plan needs no payment details and covers 300,000 events a month. You can also browse the [live demo](https://www.observe-demo.nestjs.com/dashboard) first - the whole dashboard over a busy service's data, with nothing to install.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Auto-instrument your application with [NestJS Observe](https://observe.nestjs.com). Distributed tracing, metrics, and logging made easy. Error tracking and performance monitoring for your NestJS applications.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+NestJS 12 · TypeScript 6 · Passport · TypeORM · PostgreSQL · Argon2 · Zod · class-validator · Swagger · Vitest
